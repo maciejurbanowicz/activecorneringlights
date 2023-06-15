@@ -13,13 +13,13 @@ Important note: the author of the project does not take any responsibility, nor 
 
 ## System design
 The ACL consists of:
-* Hardware:
-** Arduino Nano 33 BLE,
-** 3-position switch ON(1)-OFF(0)-ON(2),
-** 2 relays controlled by the Arduino board,
-** Harness,
-** Connectors,
-** Box.
-* Software:
-** A control software RTOS,
-** Madgwick Filter.
+### Hardware:
+- Arduino Nano 33 BLE,
+- 3-position switch ON(1)-OFF(0)-ON(2),
+- 2 relays controlled by the Arduino board,
+- Harness,
+- Connectors,
+- Box.
+### Software:
+- A control software RTOS,
+- Madgwick Filter.
