@@ -25,18 +25,15 @@ std::array<float, 3> A = {0,0,0}; //A - accelerometer [g]
 std::array<float, 3> G = {0,0,0}; //G - gyro [dps]
 
 float roll;
-//float pitch, heading;
+//float pitch, heading; //pitch and heading values
 
 //Roll angleL thresholds
-const float rollONanglenegative = -8.0;
-const float rollONanglepositive = 8.0;
-const unsigned long rollONangledelaytime = 500;
+const float rollONanglenegative = -6.5;
+const float rollONanglepositive = 6.5;
+const unsigned long rollONangledelaytime = 1000;
 
 //time
 unsigned long microsNow;
-
-//sample frequency
-//float samplefrequency = 119.0;
 
 //Relay board
 DigitalOut LightPinLeft(P1_11); //left channel ID
@@ -46,8 +43,8 @@ DigitalOut LightPinRight(P1_12); //right channel ID
 DigitalIn switch1(P0_21); //the main switch connected to D8
 DigitalIn switch2(P0_27); //the secondary switch connected to D9
 
-int switch1status = 1; //default value for the switch, OFF
-int switch2status = 1; //default value for the switch, OFF
+int switch1status = 1; //default value for the switch, 1 = OFF, 0 = ON
+int switch2status = 1; //default value for the switch, 1 = OFF, 0 = ON
 
 //Lights
 int lightLstatus = 0;
@@ -60,7 +57,7 @@ Thread TIMUreadings;
 Thread TLightsController;
 //Thread Ttelemetry;
 
-//Dev
+//LED on-board for checking ON/OFF of lights
 DigitalOut led(LED1);
 
 void IMUreadings() {
@@ -74,10 +71,7 @@ void IMUreadings() {
       // convert from raw data to gravity and degrees/second units
       for (int i = 0; i<3; i++) {
         A[i] = (A[i]*4.0) / 32768.0;
-      }
-
-      for (int j = 0; j<3; j++) {
-        G[j] = (G[j]*2000.0) / 32768.0;
+        G[i] = (G[i]*2000.0) / 32768.0;
       }
 
       // update the filter, which computes orientation
@@ -93,34 +87,6 @@ void IMUreadings() {
     }
   }
 }
-
-/* Old SwticherReading function. It was used for the two-switches 0-1 configuration.
-void SwitchesReading() {
-  for (;;) {
-    switch1status = switch1.read();
-    switch2status = switch2.read();
-
-    //if the main switch is off (status 1), then both lights are off
-    if (switch1status == 1 || (switch1status == 1 && switch2status == 1) || (switch1status == 1 && switch2status == 0)) {
-      lightLstatus = 0;
-      lightRstatus = 0;
-      lightcorneringstatus = 0;
-    }
-    else {
-      //if the main switch is on (status 0), then check the status of the second switch
-      //if the second switch is off (status 1), then the conrering light system is on (status 1)
-      if (switch1status == 0 && switch2status == 1) {
-        lightcorneringstatus = 1;
-      }
-      //if the second switch is on (status 0), then the cornering light system is off (status 0), and the lights are on
-      if (switch1status == 0 && switch2status == 0) {
-        lightcorneringstatus = 0;
-        lightLstatus = 1;
-        lightRstatus = 1;
-      }
-    }
-  }
-} */
 
 /* This is the new SwitchesReading function. It supports a single switch ON-OFF-ON. */
 
@@ -196,7 +162,18 @@ void LightsController() {
 
 void telemetry() {
   for (;;) {
-    Serial.print("Switch 1 = ");Serial.print(switch1status);Serial.print(" | Switch 2 status = ");Serial.print(switch2status);Serial.print(" | Roll = ");Serial.print(roll);Serial.print(" | Light cornering = ");Serial.print(lightcorneringstatus);Serial.print(" | Left = ");Serial.print(lightLstatus);Serial.print(" | Right = ");Serial.println(lightRstatus);
+    Serial.print("Switch 1 = ");Serial.print(switch1status);
+    Serial.print(" | Switch 2 status = ");Serial.print(switch2status);
+    Serial.print(" | Roll = ");Serial.print(roll);
+    Serial.print(" | Light cornering = ");Serial.print(lightcorneringstatus);
+    Serial.print(" | Left = ");Serial.print(lightLstatus);
+    Serial.print(" | Right = ");Serial.print(lightRstatus);
+    if ((roll<rollONanglenegative) || (roll>rollONanglepositive)) {
+      Serial.println(" | Light(s) ON");
+    }
+    else {
+      Serial.println(" | Light(s) OFF");
+    }
   }
 }
 
