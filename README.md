@@ -3,6 +3,7 @@ Active Cornering Lights for Motorcycles
 
 ## Introduction
 The Active Cornering Lights (ACL) for Motorcycles is the system aimed at improving safety and comfort when riding a motorcycle in bad weather conditions, at night and twisty roads.
+The video https://youtu.be/JiJsPRB6JLM presents a sneak peak of the system.
 It incorporates hardware and software components. It has the following features:
 * Turn on and off both (left and right) lights simutlinaseoly,
 * Turn on and off left or right light when the rider drives on the corners,
