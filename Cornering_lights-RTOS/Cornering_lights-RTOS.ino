@@ -191,7 +191,7 @@ void IMUInit() {
 }
 
 void setup() {
-  //serialInit(115200);
+  //serialInit(9600);
   IMUInit();
   switch1.mode(PullUp);
   switch2.mode(PullUp);
