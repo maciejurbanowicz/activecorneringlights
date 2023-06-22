@@ -40,7 +40,8 @@ DigitalOut LightPinLeft(P1_11); //left channel ID
 DigitalOut LightPinRight(P1_12); //right channel ID
 
 //Switch
-DigitalIn switch1(P0_21); //the main switch connected to D8
+//DigitalIn switch1(P0_21); //the main switch connected to D8
+InterruptIn switch1(P0_21);
 DigitalIn switch2(P0_27); //the secondary switch connected to D9
 
 int switch1status = 1; //default value for the switch, 1 = OFF, 0 = ON
@@ -52,10 +53,12 @@ int lightRstatus = 0;
 int lightcorneringstatus = 0;
 
 //Threads
-Thread TSwitchesReading;
-Thread TIMUreadings;
-Thread TLightsController;
-//Thread Ttelemetry;
+Thread TSwitchesReading(osPriorityNormal);
+Thread TIMUreadings(osPriorityHigh);
+Thread TLightsController(osPriorityNormal);
+Thread Ttelemetry(osPriorityNormal);
+
+osThreadId TSwitchesReadingID;
 
 //LED on-board for checking ON/OFF of lights
 DigitalOut led(LED1);
@@ -91,6 +94,7 @@ void IMUreadings() {
 /* This is the new SwitchesReading function. It supports a single switch ON-OFF-ON. */
 
 void SwitchesReading() {
+  TSwitchesReadingID = osThreadGetId();
   for (;;) {
     switch1status = switch1.read();
     switch2status = switch2.read();
@@ -190,17 +194,22 @@ void IMUInit() {
   Serial.println("IMU initialized");
 }
 
+void newInput() {
+  osSignalSet(TSwitchesReadingID,0x01);
+}
+
 void setup() {
-  //serialInit(115200);
+  serialInit(115200);
   IMUInit();
   switch1.mode(PullUp);
   switch2.mode(PullUp);
 
   //threads
   TIMUreadings.start(IMUreadings);
-  TSwitchesReading.start(SwitchesReading);
+  TSwitchesReading.start(callback(SwitchesReading));
+  switch1.rise(&newInput);
   TLightsController.start(LightsController);
-  //Ttelemetry.start(telemetry);
+  Ttelemetry.start(telemetry);
 }
 
 void loop() {
