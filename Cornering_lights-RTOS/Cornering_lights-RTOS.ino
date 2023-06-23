@@ -28,9 +28,9 @@ float roll;
 //float pitch, heading; //pitch and heading values
 
 //Roll angleL thresholds
-const float rollONanglenegative = -6.5;
-const float rollONanglepositive = 6.5;
-const unsigned long rollONangledelaytime = 1000;
+const float rollONanglenegative = -7.0;
+const float rollONanglepositive = 7.0;
+const unsigned long rollONangledelaytime = 700;
 
 //time
 unsigned long microsNow;
@@ -51,13 +51,12 @@ int switch2status = 1; //default value for the switch, 1 = OFF, 0 = ON
 //Lights
 int lightLstatus = 0;
 int lightRstatus = 0;
-int lightcorneringstatus = 0;
 
 //Threads
 //Thread TSwitchesReading;
 Thread TIMUreadings;
 Thread TLightsController;
-Thread Ttelemetry;
+//Thread Ttelemetry;
 
 //LED on-board for checking ON/OFF of lights
 DigitalOut led(LED1);
@@ -99,82 +98,19 @@ void SwitchesReading() {
     switch1status = digitalRead(switch1);
     //switch2status = switch2.read();
     switch2status = digitalRead(switch2);
-
-    //if the 1st and 2nd switches ere off (status 1), then both lights are off, the automatic cornering system is disabled
-    if (switch1status == 1 && switch2status == 1) {
-      lightLstatus = 0;
-      lightRstatus = 0;
-      lightcorneringstatus = 0;
-    }
-    //if the 1st switch is on (status 0) and the 2nd switch is off (status 1), then the conrering light system is on (status 1)
-    if (switch1status == 0 && switch2status == 1) {
-      lightLstatus = 0;
-      lightRstatus = 0;
-      lightcorneringstatus = 1;
-    }
-    //if the 1st switch is off (status 1), and the 2nd switch is on (status 0), then the cornering light system is off (status 0), and the both lights are on
-    if (switch1status == 1 && switch2status == 0) {
-      lightcorneringstatus = 0;
-      }
     }
 }
 
-/* void LightsController() {
-  for (;;) {
-    if (lightcorneringstatus == 0) {
-      if (lightLstatus == 1 && lightRstatus == 1) { 
-        LightPinLeft.write(1);
-        LightPinRight.write(1);
-        led.write(1);       
-        lightLstatus = 1;
-        lightRstatus = 1;
-      }
-      else {
-        LightPinLeft.write(0);
-        LightPinRight.write(0);
-        led.write(0);       
-        lightLstatus = 0;
-        lightRstatus = 0;        
-      }
-    }
-    else {
-      if (roll < rollONanglenegative) {
-        LightPinLeft.write(1);
-        LightPinRight.write(0);
-        led.write(1);
-        lightLstatus = 1;
-        lightRstatus = 0;
-        ThisThread::sleep_for(rollONangledelaytime);
-      }
-      if (roll > rollONanglepositive) {
-        LightPinLeft.write(0);
-        LightPinRight.write(1);
-        led.write(1);
-        lightLstatus = 0;
-        lightRstatus = 1;
-        ThisThread::sleep_for(rollONangledelaytime);
-      }
-      if (roll > rollONanglenegative && roll < rollONanglepositive) {
-        LightPinLeft.write(0);
-        LightPinRight.write(0);
-        led.write(0);
-        lightLstatus = 0;
-        lightRstatus = 0;
-      }
-    }
-  }
-} */
-
 void LightsController() {
   for (;;) {
-    if (lightcorneringstatus == 0 && switch1status == 1 && switch2status == 1) { 
+    if (switch1status == 1 && switch2status == 1) { 
       LightPinLeft.write(0);
       LightPinRight.write(0);
       led.write(0);       
       lightLstatus = 0;
       lightRstatus = 0;
     }
-	if (lightcorneringstatus == 1 && switch1status == 0 && switch2status == 1) {       
+	if (switch1status == 0 && switch2status == 1) {       
 		{
       if (roll < rollONanglenegative) {
         LightPinLeft.write(1);
@@ -182,6 +118,7 @@ void LightsController() {
         led.write(1);
         lightLstatus = 1;
         lightRstatus = 0;
+        ThisThread::sleep_for(rollONangledelaytime);
       }
       			
       if (roll > rollONanglepositive) {
@@ -190,6 +127,7 @@ void LightsController() {
         led.write(1);
         lightLstatus = 0;
         lightRstatus = 1;
+        ThisThread::sleep_for(rollONangledelaytime);
       }
       			
       if (roll > rollONanglenegative && roll < rollONanglepositive) {
@@ -201,7 +139,7 @@ void LightsController() {
       }
 		}
 	}
-    if (lightcorneringstatus == 0 && switch1status == 1 && switch2status == 0) {
+    if (switch1status == 1 && switch2status == 0) {
 		  LightPinLeft.write(1);
       LightPinRight.write(1);
       led.write(1);       
@@ -216,7 +154,6 @@ void telemetry() {
     Serial.print("Switch 1 = ");Serial.print(switch1status);
     Serial.print(" | Switch 2 = ");Serial.print(switch2status);
     Serial.print(" | Roll = ");Serial.print(roll);
-    Serial.print(" | Light cornering = ");Serial.print(lightcorneringstatus);
     Serial.print(" | Left = ");Serial.print(lightLstatus);
     Serial.print(" | Right = ");Serial.println(lightRstatus);
   }
@@ -236,7 +173,7 @@ void IMUInit() {
 }
 
 void setup() {
-  serialInit(9600);
+  //serialInit(9600);
   IMUInit();
   //switch1.mode(PullUp);
   pinMode(switch1, INPUT_PULLUP);
@@ -252,7 +189,7 @@ void setup() {
   TIMUreadings.start(IMUreadings);
   //TSwitchesReading.start(SwitchesReading);
   TLightsController.start(LightsController);
-  Ttelemetry.start(telemetry);
+  //Ttelemetry.start(telemetry);
 }
 
 void loop() {
