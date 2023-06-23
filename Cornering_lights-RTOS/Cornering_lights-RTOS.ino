@@ -1,8 +1,8 @@
 /*-------------------------------------------------------------------------------------------
-// Definitions in MadgwickAHRS.cpp. Set up the values as follows
+// Definitions in MadgwickAHRS.cpp. The values need to be adjusted according to the IMU you have and the accuracy and performance you want to achieve.
 
 #define sampleFreqDef   119.0f          // sample frequency in Hz
-#define betaDef         1.0f            // 2 * proportional gain
+#define betaDef         0.4f            // 2 * proportional gain
 */
 
 
@@ -40,8 +40,10 @@ DigitalOut LightPinLeft(P1_11); //left channel ID
 DigitalOut LightPinRight(P1_12); //right channel ID
 
 //Switch
-DigitalIn switch1(P0_21); //the main switch connected to D8
-DigitalIn switch2(P0_27); //the secondary switch connected to D9
+//DigitalIn switch1(P0_21); //the main switch connected to D8
+//DigitalIn switch2(P0_27); //the secondary switch connected to D9
+int switch1 = 8; //the main switch connected to D8
+int switch2 = 9; //the secondary switch connected do D9
 
 int switch1status = 1; //default value for the switch, 1 = OFF, 0 = ON
 int switch2status = 1; //default value for the switch, 1 = OFF, 0 = ON
@@ -52,10 +54,10 @@ int lightRstatus = 0;
 int lightcorneringstatus = 0;
 
 //Threads
-Thread TSwitchesReading;
+//Thread TSwitchesReading;
 Thread TIMUreadings;
 Thread TLightsController;
-//Thread Ttelemetry;
+Thread Ttelemetry;
 
 //LED on-board for checking ON/OFF of lights
 DigitalOut led(LED1);
@@ -91,9 +93,12 @@ void IMUreadings() {
 /* This is the new SwitchesReading function. It supports a single switch ON-OFF-ON. */
 
 void SwitchesReading() {
-  for (;;) {
-    switch1status = switch1.read();
-    switch2status = switch2.read();
+  //for (;;) {
+    {
+    //switch1status = switch1.read();
+    switch1status = digitalRead(switch1);
+    //switch2status = switch2.read();
+    switch2status = digitalRead(switch2);
 
     //if the 1st and 2nd switches ere off (status 1), then both lights are off, the automatic cornering system is disabled
     if (switch1status == 1 && switch2status == 1) {
@@ -103,18 +108,18 @@ void SwitchesReading() {
     }
     //if the 1st switch is on (status 0) and the 2nd switch is off (status 1), then the conrering light system is on (status 1)
     if (switch1status == 0 && switch2status == 1) {
+      lightLstatus = 0;
+      lightRstatus = 0;
       lightcorneringstatus = 1;
     }
     //if the 1st switch is off (status 1), and the 2nd switch is on (status 0), then the cornering light system is off (status 0), and the both lights are on
     if (switch1status == 1 && switch2status == 0) {
       lightcorneringstatus = 0;
-      lightLstatus = 1;
-      lightRstatus = 1;
       }
     }
 }
 
-void LightsController() {
+/* void LightsController() {
   for (;;) {
     if (lightcorneringstatus == 0) {
       if (lightLstatus == 1 && lightRstatus == 1) { 
@@ -158,22 +163,62 @@ void LightsController() {
       }
     }
   }
+} */
+
+void LightsController() {
+  for (;;) {
+    if (lightcorneringstatus == 0 && switch1status == 1 && switch2status == 1) { 
+      LightPinLeft.write(0);
+      LightPinRight.write(0);
+      led.write(0);       
+      lightLstatus = 0;
+      lightRstatus = 0;
+    }
+	if (lightcorneringstatus == 1 && switch1status == 0 && switch2status == 1) {       
+		{
+      if (roll < rollONanglenegative) {
+        LightPinLeft.write(1);
+        LightPinRight.write(0);
+        led.write(1);
+        lightLstatus = 1;
+        lightRstatus = 0;
+      }
+      			
+      if (roll > rollONanglepositive) {
+        LightPinLeft.write(0);
+        LightPinRight.write(1);
+        led.write(1);
+        lightLstatus = 0;
+        lightRstatus = 1;
+      }
+      			
+      if (roll > rollONanglenegative && roll < rollONanglepositive) {
+        LightPinLeft.write(0);
+        LightPinRight.write(0);
+        led.write(0);
+        lightLstatus = 0;
+        lightRstatus = 0;
+      }
+		}
+	}
+    if (lightcorneringstatus == 0 && switch1status == 1 && switch2status == 0) {
+		  LightPinLeft.write(1);
+      LightPinRight.write(1);
+      led.write(1);       
+      lightLstatus = 1;
+      lightRstatus = 1;
+		}
+  }
 }
 
 void telemetry() {
   for (;;) {
     Serial.print("Switch 1 = ");Serial.print(switch1status);
-    Serial.print(" | Switch 2 status = ");Serial.print(switch2status);
+    Serial.print(" | Switch 2 = ");Serial.print(switch2status);
     Serial.print(" | Roll = ");Serial.print(roll);
     Serial.print(" | Light cornering = ");Serial.print(lightcorneringstatus);
     Serial.print(" | Left = ");Serial.print(lightLstatus);
-    Serial.print(" | Right = ");Serial.print(lightRstatus);
-    if ((roll<rollONanglenegative) || (roll>rollONanglepositive)) {
-      Serial.println(" | Light(s) ON");
-    }
-    else {
-      Serial.println(" | Light(s) OFF");
-    }
+    Serial.print(" | Right = ");Serial.println(lightRstatus);
   }
 }
 
@@ -191,16 +236,23 @@ void IMUInit() {
 }
 
 void setup() {
-  //serialInit(9600);
+  serialInit(9600);
   IMUInit();
-  switch1.mode(PullUp);
-  switch2.mode(PullUp);
+  //switch1.mode(PullUp);
+  pinMode(switch1, INPUT_PULLUP);
+  //switch2.mode(PullUp);
+  pinMode(switch2, INPUT_PULLUP);
+
+  SwitchesReading(); //Initial reading of the statuses of the switches.
+
+  attachInterrupt(digitalPinToInterrupt(switch1),SwitchesReading,CHANGE);
+  attachInterrupt(digitalPinToInterrupt(switch2),SwitchesReading,CHANGE);
 
   //threads
   TIMUreadings.start(IMUreadings);
-  TSwitchesReading.start(SwitchesReading);
+  //TSwitchesReading.start(SwitchesReading);
   TLightsController.start(LightsController);
-  //Ttelemetry.start(telemetry);
+  Ttelemetry.start(telemetry);
 }
 
 void loop() {
