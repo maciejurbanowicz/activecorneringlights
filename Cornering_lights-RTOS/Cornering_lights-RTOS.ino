@@ -17,8 +17,6 @@ using namespace std::chrono_literals;
 
 //Madgwick
 Madgwick filter;
-unsigned long microsPerReading, microsPrevious;
-float accelScale, gyroScale;
 
 //Arrays for accelerometer and gyro
 std::array<float, 3> A = {0,0,0}; //A - accelerometer [g]
@@ -31,9 +29,6 @@ float roll;
 const float rollONanglenegative = -7.0;
 const float rollONanglepositive = 7.0;
 const unsigned long rollONangledelaytime = 700;
-
-//time
-unsigned long microsNow;
 
 //Relay board
 DigitalOut LightPinLeft(P1_11); //left channel ID
@@ -61,31 +56,26 @@ Thread TLightsController;
 //LED on-board for checking ON/OFF of lights
 DigitalOut led(LED1);
 
+/* IMUreadings reads raw values from IMU (Acceleration and Gyroscope) and uses the Madgwick filter to provide roll angle. Pitch and heading are also available. */
+
 void IMUreadings() {
   for (;;) {
-    microsNow = micros();
-    if (microsNow - microsPrevious >= microsPerReading) {
-
-      // read raw data from IMU
-      IMU.readAcceleration(A[0], A[1], A[2]);
-      IMU.readGyroscope(G[0], G[1], G[2]);
-      // convert from raw data to gravity and degrees/second units
-      for (int i = 0; i<3; i++) {
-        A[i] = (A[i]*4.0) / 32768.0;
-        G[i] = (G[i]*2000.0) / 32768.0;
-      }
-
-      // update the filter, which computes orientation
-      filter.updateIMU(G[0], G[1], G[2], A[0], A[1], A[2]);
-
-      //get roll angle after filter
-      roll = filter.getRoll();
-      //pitch = filter.getPitch();
-      //heading = filter.getYaw();
-
-      // increment previous time, so we keep proper pace
-      microsPrevious = microsPrevious + microsPerReading;
+    // read raw data from IMU
+    IMU.readAcceleration(A[0], A[1], A[2]);
+    IMU.readGyroscope(G[0], G[1], G[2]);
+    // convert from raw data to gravity and degrees/second units
+    for (int i = 0; i<3; i++) {
+      A[i] = (A[i]*4.0) / 32768.0;
+      G[i] = (G[i]*2000.0) / 32768.0;
     }
+
+    // update the filter, which computes orientation
+    filter.updateIMU(G[0], G[1], G[2], A[0], A[1], A[2]);
+
+    //get roll angle after filter
+    roll = filter.getRoll();
+    //pitch = filter.getPitch();
+    //heading = filter.getYaw();
   }
 }
 
@@ -194,5 +184,4 @@ void setup() {
 
 void loop() {
   // empty loop
-
 }
