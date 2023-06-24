@@ -40,8 +40,8 @@ DigitalOut LightPinRight(P1_12); //right channel ID
 int switch1 = 8; //the main switch connected to D8
 int switch2 = 9; //the secondary switch connected do D9
 
-int switch1status = 1; //default value for the switch, 1 = OFF, 0 = ON
-int switch2status = 1; //default value for the switch, 1 = OFF, 0 = ON
+volatile int switch1status = 1; //default value for the switch, 1 = OFF, 0 = ON
+volatile int switch2status = 1; //default value for the switch, 1 = OFF, 0 = ON
 
 //Lights
 int lightLstatus = 0;
