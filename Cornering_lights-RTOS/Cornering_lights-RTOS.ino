@@ -48,17 +48,15 @@ int lightLstatus = 0;
 int lightRstatus = 0;
 
 //Threads
-//Thread TSwitchesReading;
-Thread TIMUreadings;
-Thread TLightsController;
+Thread TRTOScontrol;
 //Thread Ttelemetry;
 
 //LED on-board for checking ON/OFF of lights
 DigitalOut led(LED1);
 
-/* IMUreadings reads raw values from IMU (Acceleration and Gyroscope) and uses the Madgwick filter to provide roll angle. Pitch and heading are also available. */
+/* RTOScontrol reads raw values from IMU (Acceleration and Gyroscope) and uses the Madgwick filter to provide roll angle. Pitch and heading are also available. */
 
-void IMUreadings() {
+void RTOScontrol() {
   for (;;) {
     // read raw data from IMU
     IMU.readAcceleration(A[0], A[1], A[2]);
@@ -76,6 +74,51 @@ void IMUreadings() {
     roll = filter.getRoll();
     //pitch = filter.getPitch();
     //heading = filter.getYaw();
+    {
+      if (switch1status == 1 && switch2status == 1) { 
+        LightPinLeft.write(0);
+        LightPinRight.write(0);
+        led.write(0);       
+        lightLstatus = 0;
+        lightRstatus = 0;
+      }
+      if (switch1status == 0 && switch2status == 1) {       
+        {
+          if (roll < rollONanglenegative) {
+            LightPinLeft.write(1);
+            LightPinRight.write(0);
+            led.write(1);
+            lightLstatus = 1;
+            lightRstatus = 0;
+            //ThisThread::sleep_for(rollONangledelaytime);
+          }
+              
+          if (roll > rollONanglepositive) {
+            LightPinLeft.write(0);
+            LightPinRight.write(1);
+            led.write(1);
+            lightLstatus = 0;
+            lightRstatus = 1;
+            //ThisThread::sleep_for(rollONangledelaytime);
+          }
+              
+          if (roll > rollONanglenegative && roll < rollONanglepositive) {
+            LightPinLeft.write(0);
+            LightPinRight.write(0);
+            led.write(0);
+            lightLstatus = 0;
+            lightRstatus = 0;
+          }
+        }
+      }
+      if (switch1status == 1 && switch2status == 0) {
+        LightPinLeft.write(1);
+        LightPinRight.write(1);
+        led.write(1);       
+        lightLstatus = 1;
+        lightRstatus = 1;
+      }
+    }  
   }
 }
 
@@ -89,54 +132,6 @@ void SwitchesReading() {
     //switch2status = switch2.read();
     switch2status = digitalRead(switch2);
     }
-}
-
-void LightsController() {
-  for (;;) {
-    if (switch1status == 1 && switch2status == 1) { 
-      LightPinLeft.write(0);
-      LightPinRight.write(0);
-      led.write(0);       
-      lightLstatus = 0;
-      lightRstatus = 0;
-    }
-	if (switch1status == 0 && switch2status == 1) {       
-		{
-      if (roll < rollONanglenegative) {
-        LightPinLeft.write(1);
-        LightPinRight.write(0);
-        led.write(1);
-        lightLstatus = 1;
-        lightRstatus = 0;
-        ThisThread::sleep_for(rollONangledelaytime);
-      }
-      			
-      if (roll > rollONanglepositive) {
-        LightPinLeft.write(0);
-        LightPinRight.write(1);
-        led.write(1);
-        lightLstatus = 0;
-        lightRstatus = 1;
-        ThisThread::sleep_for(rollONangledelaytime);
-      }
-      			
-      if (roll > rollONanglenegative && roll < rollONanglepositive) {
-        LightPinLeft.write(0);
-        LightPinRight.write(0);
-        led.write(0);
-        lightLstatus = 0;
-        lightRstatus = 0;
-      }
-		}
-	}
-    if (switch1status == 1 && switch2status == 0) {
-		  LightPinLeft.write(1);
-      LightPinRight.write(1);
-      led.write(1);       
-      lightLstatus = 1;
-      lightRstatus = 1;
-		}
-  }
 }
 
 void telemetry() {
@@ -165,9 +160,7 @@ void IMUInit() {
 void setup() {
   //serialInit(9600);
   IMUInit();
-  //switch1.mode(PullUp);
   pinMode(switch1, INPUT_PULLUP);
-  //switch2.mode(PullUp);
   pinMode(switch2, INPUT_PULLUP);
 
   SwitchesReading(); //Initial reading of the statuses of the switches.
@@ -176,9 +169,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(switch2),SwitchesReading,CHANGE);
 
   //threads
-  TIMUreadings.start(IMUreadings);
-  //TSwitchesReading.start(SwitchesReading);
-  TLightsController.start(LightsController);
+  TRTOScontrol.start(RTOScontrol);
   //Ttelemetry.start(telemetry);
 }
 
