@@ -33,15 +33,19 @@ const unsigned long rollONangledelaytime = 700;
 //Relay board
 DigitalOut LightPinLeft(P1_11); //left channel ID
 DigitalOut LightPinRight(P1_12); //right channel ID
+//#define LightPinLeft 2 //left channel ID
+//#define LightPinRight 3 //right channel ID
 
 //Switch
-//DigitalIn switch1(P0_21); //the main switch connected to D8
-//DigitalIn switch2(P0_27); //the secondary switch connected to D9
-int switch1 = 8; //the main switch connected to D8
-int switch2 = 9; //the secondary switch connected do D9
+DigitalIn switch1(P0_21); //the main switch connected to D8
+DigitalIn switch2(P0_27); //the secondary switch connected to D9
+//#define switch1 8; //the main switch connected to D8
+//#define switch2 9; //the secondary switch connected do D9
 
 volatile int switch1status = 1; //default value for the switch, 1 = OFF, 0 = ON
 volatile int switch2status = 1; //default value for the switch, 1 = OFF, 0 = ON
+int switch1statustemp = 0; //temporary switch status 1
+int switch2statustemp = 0; //temporary switch status 2
 
 //Lights
 int lightLstatus = 0;
@@ -49,7 +53,7 @@ int lightRstatus = 0;
 
 //Threads
 Thread TRTOScontrol;
-//Thread Ttelemetry;
+Thread Ttelemetry;
 
 //LED on-board for checking ON/OFF of lights
 DigitalOut led(LED1);
@@ -75,7 +79,7 @@ void RTOScontrol() {
     //pitch = filter.getPitch();
     //heading = filter.getYaw();
     {
-      if (switch1status == 1 && switch2status == 1) { 
+      if (switch1status == 1 && switch2status == 1) {
         LightPinLeft.write(0);
         LightPinRight.write(0);
         led.write(0);       
@@ -114,33 +118,49 @@ void RTOScontrol() {
       if (switch1status == 1 && switch2status == 0) {
         LightPinLeft.write(1);
         LightPinRight.write(1);
-        led.write(1);       
+        led.write(1);     
         lightLstatus = 1;
         lightRstatus = 1;
       }
-    }  
+    }
   }
 }
 
 /* This is the new SwitchesReading function. It supports a single switch ON-OFF-ON. */
 
 void SwitchesReading() {
-  //for (;;) {
-    {
-    //switch1status = switch1.read();
-    switch1status = digitalRead(switch1);
-    //switch2status = switch2.read();
-    switch2status = digitalRead(switch2);
-    }
+  switch1statustemp = 0;
+  switch2statustemp = 0;
+  int iterations = 1000;
+  int threshold = 50;
+  for (int i = 0 ; i<iterations; i++) {
+    switch1statustemp = switch1statustemp + digitalRead(switch1);
+    switch2statustemp = switch2statustemp + digitalRead(switch2);
+  }
+  if (switch1statustemp > threshold) {
+    switch1status = 1; //OFF
+  }
+  else {
+    switch1status = 0; //ON
+  }
+  if (switch2statustemp > threshold) {
+    switch2status = 1; //OFF
+  }
+  else {
+    switch2status = 0; //ON
+  }
 }
 
 void telemetry() {
   for (;;) {
     Serial.print("Switch 1 = ");Serial.print(switch1status);
     Serial.print(" | Switch 2 = ");Serial.print(switch2status);
-    Serial.print(" | Roll = ");Serial.print(roll);
-    Serial.print(" | Left = ");Serial.print(lightLstatus);
-    Serial.print(" | Right = ");Serial.println(lightRstatus);
+    Serial.print(" | Switch 1 RAW = ");Serial.print(digitalRead(switch1));
+    Serial.print(" | Switch 2 RAW = ");Serial.print(digitalRead(switch2));
+    Serial.print(" | Light L = ");Serial.print(lightLstatus);
+    Serial.print(" | Light R = ");Serial.print(lightRstatus);
+    Serial.print(" | switch1statustemp = ");Serial.print(switch1statustemp);
+    Serial.print(" | switch2statustemp = ");Serial.println(switch2statustemp);
   }
 }
 
@@ -158,19 +178,19 @@ void IMUInit() {
 }
 
 void setup() {
-  //serialInit(9600);
+  serialInit(9600);
   IMUInit();
   pinMode(switch1, INPUT_PULLUP);
   pinMode(switch2, INPUT_PULLUP);
 
-  SwitchesReading(); //Initial reading of the statuses of the switches.
+  //SwitchesReading(); //Initial reading of the statuses of the switches.
 
   attachInterrupt(digitalPinToInterrupt(switch1),SwitchesReading,CHANGE);
   attachInterrupt(digitalPinToInterrupt(switch2),SwitchesReading,CHANGE);
 
   //threads
   TRTOScontrol.start(RTOScontrol);
-  //Ttelemetry.start(telemetry);
+  Ttelemetry.start(telemetry);
 }
 
 void loop() {
